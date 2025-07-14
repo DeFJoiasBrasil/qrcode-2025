@@ -9,7 +9,7 @@ async function transcribeAudio(audioUrl) {
     const transcription = await openai.audio.transcriptions.create({
         file: buffer,
         model: "whisper-1",
-        filename: "audio.ogg", // necessário para identificar o tipo
+        filename: "audio.ogg",
         mimeType: "audio/ogg"
     });
 
