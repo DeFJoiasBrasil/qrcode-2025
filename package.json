@@ -6,16 +6,6 @@
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [
-    "whatsapp",
-    "openai",
-    "whatsapp-web.js",
-    "gpt-4o",
-    "transcrição",
-    "chatbot"
-  ],
-  "author": "D&F Joias",
-  "license": "MIT",
   "dependencies": {
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
