@@ -1,1 +1,33 @@
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR Code WhatsApp</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      color: #333;
+    }
+    img {
+      margin-top: 20px;
+      border: 3px solid #333;
+      padding: 10px;
+      background: white;
+    }
+  </style>
+</head>
+<body>
+  <h1>Escaneie o QR Code abaixo:</h1>
+  <img src="<%= imageUrl %>" alt="QR Code do WhatsApp" width="300" />
+</body>
+</html>
