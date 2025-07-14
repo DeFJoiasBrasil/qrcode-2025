@@ -1,12 +1,11 @@
 require('dotenv').config();
 const express = require('express');
 const { transcribeAudio } = require('./utils/transcribe');
-const { createOpenAI } = require('openai');
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const app = express();
 app.use(express.json());
-
-const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const promptBase = `
 Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas. 
@@ -32,7 +31,7 @@ app.post('/webhook', async (req, res) => {
         let userMessage = message;
 
         if (isAudio) {
-            userMessage = await transcribeAudio(message); // URL do áudio
+            userMessage = await transcribeAudio(message);
         }
 
         const response = await openai.chat.completions.create({
