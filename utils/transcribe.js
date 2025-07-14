@@ -1,6 +1,4 @@
-
 const { createOpenAI } = require("openai");
-
 const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function transcribeAudio(audioUrl) {
