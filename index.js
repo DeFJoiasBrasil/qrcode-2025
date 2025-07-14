@@ -32,7 +32,7 @@ app.post('/webhook', async (req, res) => {
         let userMessage = message;
 
         if (isAudio) {
-            userMessage = await transcribeAudio(message);
+            userMessage = await transcribeAudio(message); // URL do áudio
         }
 
         const response = await openai.chat.completions.create({
