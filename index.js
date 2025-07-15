@@ -1,24 +1,21 @@
 require('dotenv').config();
 const express = require('express');
 const { transcribeAudio } = require('./utils/transcribe');
+const { OpenAI } = require('openai');
 const qrcode = require('qrcode-terminal');
-const { create } = require('@wppconnect-team/wppconnect');
-const { Configuration, OpenAIApi } = require('openai');
+const { create } = require('@open-wa/wa-automate');
 const path = require('path');
-
 const app = express();
 app.use(express.json());
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(config);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const promptBase = \`
+const promptBase = `
 Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas. 
-Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
+Baseie-se nas informações abaixo para responder de forma persuasiva e clara:
 
 - Vendemos alianças feitas com moedas antigas, com o mesmo brilho e tom do ouro.
 - As alianças não desbotam, não descascam e não enferrujam.
@@ -31,43 +28,65 @@ Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 
 Fale com leveza, simpatia, segurança e sempre conduza o cliente até a decisão de compra.
 Use emojis quando necessário. Responda como se fosse humano.
-\`;
+`;
 
-let qrImage = '';
+let lastQrCode = null;
 
-create({
-  session: 'sessionName',
-  catchQR: (base64Qrimg) => {
-    qrImage = 'data:image/png;base64,' + base64Qrimg;
+// renderiza o QR Code
+app.get('/', (req, res) => {
+  if (lastQrCode) {
+    res.render('qr', { imageUrl: lastQrCode });
+  } else {
+    res.send('Gerando QR Code... atualize em alguns segundos.');
   }
-}).then((client) => {
-  client.onMessage(async (message) => {
-    if (message.type === 'ptt') return;
-
-    const userMessage = message.body;
-
-    const response = await openai.createChatCompletion({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: promptBase },
-        { role: 'user', content: userMessage }
-      ]
-    });
-
-    const reply = response.data.choices[0].message.content;
-    client.sendText(message.from, reply);
-  });
 });
 
-app.get('/', (req, res) => {
-  if (!qrImage) {
-    res.send('<h1>Gerando QR Code... atualize em alguns segundos.</h1>');
-  } else {
-    res.render('qr', { imageUrl: qrImage });
+// Webhook de atendimento
+app.post('/webhook', async (req, res) => {
+  const { message, isAudio } = req.body;
+
+  try {
+    let userMessage = message;
+
+    if (isAudio) {
+      userMessage = await transcribeAudio(message); // URL do áudio
+    }
+
+    const response = await openai.chat.completions.create({
+      messages: [
+        { role: "system", content: promptBase },
+        { role: "user", content: userMessage }
+      ],
+      model: "gpt-4o"
+    });
+
+    const aiReply = response.choices[0].message.content;
+    res.json({ reply: aiReply });
+  } catch (error) {
+    console.error("Erro no atendimento:", error.message);
+    res.status(500).json({ error: "Erro ao processar mensagem" });
   }
+});
+
+// Inicializa o WhatsApp
+create({
+  sessionId: "dfjoias",
+  multiDevice: true,
+  headless: true,
+  qrTimeout: 0,
+  authTimeout: 60,
+  qrRefreshS: 10,
+  useChrome: true,
+  killProcessOnBrowserClose: true,
+  autoRefresh: true,
+  throwErrorOnTosBlock: false,
+  disableSpins: true,
+  headless: true
+}).then(client => {
+  console.log("✅ WhatsApp conectado com sucesso!");
+}).catch(err => {
+  console.error("❌ Erro ao iniciar o WhatsApp:", err);
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
