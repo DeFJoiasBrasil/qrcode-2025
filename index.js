@@ -1,22 +1,15 @@
 require('dotenv').config();
 const express = require('express');
+const { create, ev } = require('@open-wa/wa-automate');
 const { transcribeAudio } = require('./utils/transcribe');
-const qrcode = require('qrcode-terminal');
-const { create } = require('@wppconnect-team/wppconnect');
-const { Configuration, OpenAIApi } = require('openai');
-const path = require('path');
+const { OpenAI } = require('openai');
 
 const app = express();
 app.use(express.json());
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(config);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const promptBase = \`
+const promptBase = `
 Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas. 
 Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 
@@ -31,43 +24,34 @@ Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 
 Fale com leveza, simpatia, segurança e sempre conduza o cliente até a decisão de compra.
 Use emojis quando necessário. Responda como se fosse humano.
-\`;
+`;
 
-let qrImage = '';
+create().then(client => {
+    client.onMessage(async message => {
+        try {
+            let userMessage = message.body;
+            if (message.mimetype === 'audio/ogg; codecs=opus') {
+                const mediaData = await client.decryptFile(message);
+                const audioBase64 = Buffer.from(mediaData).toString('base64');
+                const audioUrl = `data:audio/ogg;base64,${audioBase64}`;
+                userMessage = await transcribeAudio(audioUrl);
+            }
 
-create({
-  session: 'sessionName',
-  catchQR: (base64Qrimg) => {
-    qrImage = 'data:image/png;base64,' + base64Qrimg;
-  }
-}).then((client) => {
-  client.onMessage(async (message) => {
-    if (message.type === 'ptt') return;
+            const response = await openai.chat.completions.create({
+                model: 'gpt-4o',
+                messages: [
+                    { role: 'system', content: promptBase },
+                    { role: 'user', content: userMessage }
+                ]
+            });
 
-    const userMessage = message.body;
-
-    const response = await openai.createChatCompletion({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: promptBase },
-        { role: 'user', content: userMessage }
-      ]
+            await client.sendText(message.from, response.choices[0].message.content);
+        } catch (err) {
+            console.error('Erro ao responder mensagem:', err);
+        }
     });
-
-    const reply = response.data.choices[0].message.content;
-    client.sendText(message.from, reply);
-  });
 });
 
-app.get('/', (req, res) => {
-  if (!qrImage) {
-    res.send('<h1>Gerando QR Code... atualize em alguns segundos.</h1>');
-  } else {
-    res.render('qr', { imageUrl: qrImage });
-  }
-});
-
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+app.listen(process.env.PORT || 8080, () => {
+    console.log('🚀 Servidor rodando na porta 8080');
 });
