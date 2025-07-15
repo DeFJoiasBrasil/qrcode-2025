@@ -1,22 +1,25 @@
-const fs = require('fs');
-const axios = require('axios');
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require("openai");
+const fetch = require("node-fetch");
+const fs = require("fs");
+const path = require("path");
 
-const config = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(config);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function transcribeAudio(audioUrl) {
-  const response = await axios.get(audioUrl, { responseType: 'arraybuffer' });
-  const buffer = Buffer.from(response.data);
+  const response = await fetch(audioUrl);
+  const buffer = await response.buffer();
 
-  const transcription = await openai.createTranscription(
-    buffer,
-    'whisper-1'
-  );
+  const tempPath = path.join(__dirname, "temp_audio.ogg");
+  fs.writeFileSync(tempPath, buffer);
 
-  return transcription.data.text;
+  const transcription = await openai.audio.transcriptions.create({
+    file: fs.createReadStream(tempPath),
+    model: "whisper-1"
+  });
+
+  fs.unlinkSync(tempPath); // Apaga o arquivo temporário
+
+  return transcription.text;
 }
 
 module.exports = { transcribeAudio };
