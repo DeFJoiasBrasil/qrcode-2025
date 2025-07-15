@@ -27,10 +27,6 @@
 </head>
 <body>
   <h1>Escaneie o QR Code abaixo:</h1>
-  <% if (imageUrl) { %>
-    <img src="<%= imageUrl %>" alt="QR Code do WhatsApp" width="300" />
-  <% } else { %>
-    <p>Gerando QR Code... atualize em alguns segundos.</p>
-  <% } %>
+  <img src="<%= imageUrl %>" alt="QR Code do WhatsApp" width="300" />
 </body>
 </html>
