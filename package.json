@@ -1,17 +1,15 @@
 {
   "name": "evolution-api-ia",
   "version": "1.0.0",
-  "description": "Atendente virtual IA para WhatsApp com suporte a áudio e texto",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "@wppconnect-team/wppconnect": "^1.9.6",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
-    "openai": "^4.21.0",
-    "qrcode": "^1.5.1",
-    "whatsapp-web.js": "^1.21.1"
+    "openai": "^4.29.1"
   }
 }

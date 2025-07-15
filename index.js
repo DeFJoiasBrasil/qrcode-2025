@@ -1,59 +1,23 @@
 require('dotenv').config();
 const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode');
-const fs = require('fs');
-const path = require('path');
 const { transcribeAudio } = require('./utils/transcribe');
-const { OpenAI } = require('openai');
+const qrcode = require('qrcode-terminal');
+const { create } = require('@wppconnect-team/wppconnect');
+const { Configuration, OpenAIApi } = require('openai');
+const path = require('path');
 
 const app = express();
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-let qrImageUrl = null;
-
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    puppeteer: {
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    }
+const config = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(config);
 
-client.on('qr', async qr => {
-    const qrDataUrl = await qrcode.toDataURL(qr);
-    qrImageUrl = qrDataUrl;
-});
-
-client.on('ready', () => {
-    console.log('✅ WhatsApp conectado com sucesso!');
-});
-
-client.on('message', async msg => {
-    try {
-        const isAudio = msg.hasMedia && msg.type === 'audio';
-
-        let userMessage = msg.body;
-
-        if (isAudio) {
-            const media = await msg.downloadMedia();
-            const buffer = Buffer.from(media.data, 'base64');
-            const tempPath = path.join(__dirname, 'temp.ogg');
-            fs.writeFileSync(tempPath, buffer);
-            userMessage = await transcribeAudio(tempPath);
-            fs.unlinkSync(tempPath);
-        }
-
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                {
-                    role: "system",
-                    content: `Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas. 
+const promptBase = \`
+Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas. 
 Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 
 - Vendemos alianças feitas com moedas antigas, com o mesmo brilho e tom do ouro.
@@ -66,31 +30,44 @@ Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 - A caixa é vendida separadamente e deve ser mencionada apenas se o cliente perguntar.
 
 Fale com leveza, simpatia, segurança e sempre conduza o cliente até a decisão de compra.
-Use emojis quando necessário. Responda como se fosse humano.`
-                },
-                { role: "user", content: userMessage }
-            ]
-        });
+Use emojis quando necessário. Responda como se fosse humano.
+\`;
 
-        const aiReply = response.choices[0].message.content;
-        msg.reply(aiReply);
-    } catch (error) {
-        console.error("Erro ao responder mensagem:", error);
-        msg.reply("Desculpe, houve um erro ao processar sua mensagem. Tente novamente.");
-    }
+let qrImage = '';
+
+create({
+  session: 'sessionName',
+  catchQR: (base64Qrimg) => {
+    qrImage = 'data:image/png;base64,' + base64Qrimg;
+  }
+}).then((client) => {
+  client.onMessage(async (message) => {
+    if (message.type === 'ptt') return;
+
+    const userMessage = message.body;
+
+    const response = await openai.createChatCompletion({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: promptBase },
+        { role: 'user', content: userMessage }
+      ]
+    });
+
+    const reply = response.data.choices[0].message.content;
+    client.sendText(message.from, reply);
+  });
 });
 
-client.initialize();
-
 app.get('/', (req, res) => {
-    if (qrImageUrl) {
-        res.render('qr', { imageUrl: qrImageUrl });
-    } else {
-        res.send('<h1>Gerando QR Code... atualize em alguns segundos.</h1>');
-    }
+  if (!qrImage) {
+    res.send('<h1>Gerando QR Code... atualize em alguns segundos.</h1>');
+  } else {
+    res.render('qr', { imageUrl: qrImage });
+  }
 });
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
