@@ -1,59 +1,40 @@
 require("dotenv").config();
 const express = require("express");
-const { transcribeAudio } = require("./utils/transcribe");
-const { OpenAI } = require("openai");
-const path = require("path");
-
+const { create, ev } = require("@open-wa/wa-automate");
 const app = express();
-app.use(express.json());
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+let qrCodeBase64 = "";
 
-const promptBase = `Você é um atendente virtual da D&F Joias, especialista em responder com empatia e foco em vendas.
-Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
+create({
+  sessionId: "defjoias",
+  multiDevice: true,
+  qrTimeout: 0,
+  authTimeout: 0,
+  headless: true,
+  useChrome: false,
+  disableSpins: true,
+  logConsole: false,
+  popup: false
+}).then(client => {
+  console.log("✅ WhatsApp conectado!");
+}).catch(err => console.error("Erro ao iniciar o WhatsApp:", err));
 
-- Vendemos alianças feitas com moedas antigas, com o mesmo brilho e tom do ouro.
-- As alianças não desbotam, não descascam e não enferrujam.
-- Temos todos os tamanhos prontos para entrega.
-- Entregamos presencialmente em algumas cidades, e por Correios nas demais.
-- Nunca diga que entregamos em todo o Brasil. Pergunte sempre a cidade e o bairro.
-- Se o cliente perguntar sobre medidas, diga que levamos todos os tamanhos.
-- Garantia permanente da cor.
-- A caixa é vendida separadamente e deve ser mencionada apenas se o cliente perguntar.
-
-Fale com leveza, simpatia, segurança e sempre conduza o cliente até a decisão de compra.
-Use emojis quando necessário. Responda como se fosse humano.`;
-
-app.get("/", (req, res) => {
-    res.render("qr", { imageUrl: process.env.QR_IMAGE_URL || "" });
+ev.on("qr.**", async qrcode => {
+  qrCodeBase64 = `data:image/png;base64,${qrcode}`;
 });
 
-app.post("/webhook", async (req, res) => {
-    const { message, isAudio } = req.body;
+app.set("view engine", "ejs");
+app.set("views", "./views");
 
-    try {
-        let userMessage = message;
-        if (isAudio) {
-            userMessage = await transcribeAudio(message);
-        }
-
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
-            messages: [
-                { role: "system", content: promptBase },
-                { role: "user", content: userMessage }
-            ]
-        });
-
-        const aiReply = completion.choices[0].message.content;
-        res.json({ reply: aiReply });
-    } catch (err) {
-        console.error("Erro no atendimento:", err);
-        res.status(500).json({ error: "Erro ao processar a mensagem" });
-    }
+app.get("/", (req, res) => {
+  if (!qrCodeBase64) {
+    res.render("qr", { imageUrl: null });
+  } else {
+    res.render("qr", { imageUrl: qrCodeBase64 });
+  }
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+});
