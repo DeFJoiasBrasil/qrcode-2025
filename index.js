@@ -1,14 +1,13 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const QRCode = require('qrcode');
-const { transcribeAudio } = require('./utils/transcribe');
+require("dotenv").config();
+const express = require("express");
+const { transcribeAudio } = require("./utils/transcribe");
 const { OpenAI } = require("openai");
+const path = require("path");
 
 const app = express();
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 app.use(express.json());
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -27,14 +26,11 @@ Baseie-se nas informações abaixo para responder de forma persuasiva e clara.
 Fale com leveza, simpatia, segurança e sempre conduza o cliente até a decisão de compra.
 Use emojis quando necessário. Responda como se fosse humano.`;
 
-// Gera e exibe QR Code
-app.get('/', async (req, res) => {
-    const whatsappUrl = "https://wa.me/5561999999999";
-    const imageUrl = await QRCode.toDataURL(whatsappUrl);
-    res.render('qr', { imageUrl });
+app.get("/", (req, res) => {
+    res.render("qr", { imageUrl: process.env.QR_IMAGE_URL || "" });
 });
 
-app.post('/webhook', async (req, res) => {
+app.post("/webhook", async (req, res) => {
     const { message, isAudio } = req.body;
 
     try {
@@ -53,9 +49,9 @@ app.post('/webhook', async (req, res) => {
 
         const aiReply = completion.choices[0].message.content;
         res.json({ reply: aiReply });
-    } catch (error) {
-        console.error("Erro no atendimento:", error.message);
-        res.status(500).json({ error: "Erro ao processar mensagem" });
+    } catch (err) {
+        console.error("Erro no atendimento:", err);
+        res.status(500).json({ error: "Erro ao processar a mensagem" });
     }
 });
 
