@@ -1,21 +1,19 @@
-const { Configuration, OpenAIApi } = require("openai");
-const fs = require("fs");
+const OpenAI = require("openai");
+const fetch = require("node-fetch");
 
-const configuration = new Configuration({
-  apiKey: process.env.OPENAI_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAIApi(configuration);
 
-async function transcribeAudio(buffer) {
-  const tmpFilePath = "/tmp/audio.ogg";
-  fs.writeFileSync(tmpFilePath, buffer);
+async function transcribeAudio(audioUrl) {
+  const audioBuffer = await fetch(audioUrl).then(res => res.buffer());
 
-  const response = await openai.createTranscription(
-    fs.createReadStream(tmpFilePath),
-    "whisper-1"
-  );
+  const transcription = await openai.audio.transcriptions.create({
+    file: audioBuffer,
+    model: "whisper-1"
+  });
 
-  return response.data.text;
+  return transcription.text;
 }
 
 module.exports = { transcribeAudio };
