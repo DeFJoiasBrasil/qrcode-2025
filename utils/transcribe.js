@@ -1,10 +1,12 @@
 const { OpenAI } = require("openai");
+
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function transcribeAudio(audioUrl) {
-    const audioFile = await fetch(audioUrl).then(r => r.blob());
+    const response = await fetch(audioUrl);
+    const blob = await response.blob();
     const transcription = await openai.audio.transcriptions.create({
-        file: audioFile,
+        file: blob,
         model: "whisper-1"
     });
     return transcription.text;
