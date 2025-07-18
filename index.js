@@ -1,61 +1,33 @@
-const { create, ev } = require('@open-wa/wa-automate');
-const http = require('http');
+require('dotenv').config();
+const express = require('express');
+const { create } = require('@open-wa/wa-automate');
 
-let latestQRCode = null;
+const app = express();
+const PORT = process.env.PORT || 8080;
 
-create({
-  headless: true,
-  useChrome: true,
-  qrTimeout: 0,
-  killProcessOnBrowserClose: true,
-  qrRefreshS: 10,
-  authTimeout: 0,
-  multiDevice: true,
-}).then(async (client) => {
-  console.log('🤖 Bot iniciado com sucesso!');
-  await client.onMessage(async (message) => {
-    if (message.body === 'oi' || message.body === 'Oi') {
-      await client.sendText(message.from, 'Olá! Seja bem-vindo à D&F Joias 💍');
+function start(client) {
+  client.onMessage(async message => {
+    if (message.body === 'Oi' && message.isGroupMsg === false) {
+      await client.sendText(message.from, 'Olá! 👋 Como posso te ajudar?');
     }
   });
+}
+
+create({
+  sessionId: 'defjoias',
+  useChrome: true,
+  headless: true,
+  qrTimeout: 0,
+  qrRefreshS: 10,
+  qrLogSkip: false,
+  disableSpins: true,
+  logConsole: true
+}).then(client => start(client));
+
+app.get('/', (req, res) => {
+  res.send('Servidor online! Escaneie o QR Code no terminal.');
 });
 
-ev.on('qr.**', async (qrcode) => {
-  latestQRCode = qrcode; // Salva a imagem em base64 do QR
-  console.log('[QR] Código atualizado');
-});
-
-const server = http.createServer((req, res) => {
-  if (req.url === '/') {
-    if (!latestQRCode) {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(\`
-        <html>
-          <head><title>QR Code do WhatsApp</title></head>
-          <body>
-            <h2>Escaneie o QR Code abaixo:</h2>
-            <p>Aguardando geração do QR Code... atualize em alguns segundos.</p>
-          </body>
-        </html>
-      \`);
-    } else {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(\`
-        <html>
-          <head><title>QR Code do WhatsApp</title></head>
-          <body>
-            <h2>Escaneie o QR Code abaixo:</h2>
-            <img src="\${latestQRCode}" alt="QR Code do WhatsApp" />
-          </body>
-        </html>
-      \`);
-    }
-  } else {
-    res.writeHead(404);
-    res.end('Página não encontrada');
-  }
-});
-
-server.listen(8080, () => {
-  console.log('🚀 Servidor rodando na porta 8080');
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
