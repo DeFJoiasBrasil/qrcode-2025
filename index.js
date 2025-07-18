@@ -21,22 +21,35 @@ create({
 });
 
 ev.on('qr.**', async (qrcode) => {
-  latestQRCode = qrcode;
+  latestQRCode = qrcode; // Salva a imagem em base64 do QR
   console.log('[QR] Código atualizado');
 });
 
 const server = http.createServer((req, res) => {
   if (req.url === '/') {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end(`
-      <html>
-        <head><title>QR Code do WhatsApp</title></head>
-        <body>
-          <h2>Escaneie o QR Code abaixo:</h2>
-          ${latestQRCode ? `<img src="${latestQRCode}" alt="QR Code do WhatsApp" />` : '<p>Gerando QR Code... atualize em alguns segundos.</p>'}
-        </body>
-      </html>
-    `);
+    if (!latestQRCode) {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(\`
+        <html>
+          <head><title>QR Code do WhatsApp</title></head>
+          <body>
+            <h2>Escaneie o QR Code abaixo:</h2>
+            <p>Aguardando geração do QR Code... atualize em alguns segundos.</p>
+          </body>
+        </html>
+      \`);
+    } else {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(\`
+        <html>
+          <head><title>QR Code do WhatsApp</title></head>
+          <body>
+            <h2>Escaneie o QR Code abaixo:</h2>
+            <img src="\${latestQRCode}" alt="QR Code do WhatsApp" />
+          </body>
+        </html>
+      \`);
+    }
   } else {
     res.writeHead(404);
     res.end('Página não encontrada');
