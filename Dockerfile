@@ -1,6 +1,5 @@
 FROM node:18
 
-# Instala bibliotecas necessárias pro Puppeteer (Chrome headless)
 RUN apt-get update && apt-get install -y \
   wget \
   ca-certificates \
@@ -28,12 +27,8 @@ RUN apt-get update && apt-get install -y \
   rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm install
-
 COPY . .
-
 EXPOSE 8080
-
-CMD [ "node", "index.js" ]
+CMD ["npm", "start"]

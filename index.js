@@ -1,40 +1,48 @@
-require("dotenv").config();
-const express = require("express");
-const { create, ev } = require("@open-wa/wa-automate");
-const app = express();
+const { create, ev } = require('@open-wa/wa-automate');
+const http = require('http');
 
-let qrCodeBase64 = "";
+let latestQRCode = null;
 
 create({
-  sessionId: "defjoias",
-  multiDevice: true,
-  qrTimeout: 0,
-  authTimeout: 0,
   headless: true,
-  useChrome: false,
-  disableSpins: true,
-  logConsole: false,
-  popup: false
-}).then(client => {
-  console.log("✅ WhatsApp conectado!");
-}).catch(err => console.error("Erro ao iniciar o WhatsApp:", err));
-
-ev.on("qr.**", async qrcode => {
-  qrCodeBase64 = `data:image/png;base64,${qrcode}`;
+  useChrome: true,
+  qrTimeout: 0,
+  killProcessOnBrowserClose: true,
+  qrRefreshS: 10,
+  authTimeout: 0,
+  multiDevice: true,
+}).then(async (client) => {
+  console.log('🤖 Bot iniciado com sucesso!');
+  await client.onMessage(async (message) => {
+    if (message.body === 'oi' || message.body === 'Oi') {
+      await client.sendText(message.from, 'Olá! Seja bem-vindo à D&F Joias 💍');
+    }
+  });
 });
 
-app.set("view engine", "ejs");
-app.set("views", "./views");
+ev.on('qr.**', async (qrcode) => {
+  latestQRCode = qrcode;
+  console.log('[QR] Código atualizado');
+});
 
-app.get("/", (req, res) => {
-  if (!qrCodeBase64) {
-    res.render("qr", { imageUrl: null });
+const server = http.createServer((req, res) => {
+  if (req.url === '/') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(`
+      <html>
+        <head><title>QR Code do WhatsApp</title></head>
+        <body>
+          <h2>Escaneie o QR Code abaixo:</h2>
+          ${latestQRCode ? `<img src="${latestQRCode}" alt="QR Code do WhatsApp" />` : '<p>Gerando QR Code... atualize em alguns segundos.</p>'}
+        </body>
+      </html>
+    `);
   } else {
-    res.render("qr", { imageUrl: qrCodeBase64 });
+    res.writeHead(404);
+    res.end('Página não encontrada');
   }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+server.listen(8080, () => {
+  console.log('🚀 Servidor rodando na porta 8080');
 });
